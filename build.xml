@@ -5,7 +5,7 @@
      mrsort    
      a sample map reduce sort
                    
-     ken                                                                
+     kenberland                                                                
      ====================================================================== -->
 <project xmlns:ivy="antlib:org.apache.ivy.ant" name="mrsort" default="default">
 	<description>
@@ -73,7 +73,7 @@
 	</target>
 	
 	<target name="puke">
-		<java fork="true" classname="com.hero.mrsort.SequenceReader" >
+		<java fork="true" classname="com.hero.mrsort.SequenceReaderAndConfirmation" >
 			<classpath>
 				<path refid="class.path" />
 				<pathelement location="build/classes" />
