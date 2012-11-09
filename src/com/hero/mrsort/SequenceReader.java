@@ -1,39 +1,37 @@
 package com.hero.mrsort;
 
-import java.nio.ByteBuffer;
-
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.SequenceFile;
 
 public class SequenceReader {
 
+	public static final long unsignedIntToLong(byte[] b) 
+	{
+	    long l = 0;
+	    l |= b[0] & 0xFF;
+	    l <<= 8;
+	    l |= b[1] & 0xFF;
+	    l <<= 8;
+	    l |= b[2] & 0xFF;
+	    l <<= 8;
+	    l |= b[3] & 0xFF;
+	    return l;
+	}
 	
 	public static void main(String[] args) throws Exception {
-				
-		SequenceFile.Reader.Option[] options = new SequenceFile.Reader.Option[1];
-		options[0] = SequenceFile.Reader.file( new Path("/tmp/output/part-m-00000") );	
-		SequenceFile.Reader reader = new SequenceFile.Reader(new Configuration(), options );
-		
-		BytesWritable key = new BytesWritable();
-		BytesWritable val = new BytesWritable();
-		ByteBuffer myBuffer = ByteBuffer.allocate(4);
-		
-		while( reader.next(key, val) ){
-			myBuffer.rewind();
-			myBuffer.put( key.getBytes(), 0, 4 );
-			myBuffer.rewind();
-			System.out.print( myBuffer.getInt() );
-			myBuffer.rewind();
-			myBuffer.put( val.getBytes(), 0, 4 );
-			myBuffer.rewind();
-			System.out.print( ":" + myBuffer.getInt() + "\n");
+		Configuration conf = new Configuration();
+		FileSystem fs = FileSystem.get(conf);
+		SequenceFile.Reader reader = new SequenceFile.Reader(fs, new Path("/tmp/output/part-00000"), new Configuration());
 
+		BytesWritable key = new BytesWritable();
+		
+		while( reader.next(key) ){
+			System.out.printf( "%010d\n", unsignedIntToLong(key.getBytes()) );
 		}		
 		reader.close();
-		System.err.println("Done");
-
 	}
 
 }

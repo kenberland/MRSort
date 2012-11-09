@@ -17,6 +17,8 @@
    specific language governing permissions and limitations
    under the License.    
 -->
+
+<!-- find artfacts at http://mvnrepository.com/ -->
 <ivy-module version="2.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
        xsi:noNamespaceSchemaLocation="http://ant.apache.org/ivy/schemas/ivy.xsd">
     <info
@@ -29,7 +31,16 @@
 	<dependencies>
 		<dependency org="commons-lang" name="commons-lang" rev="2.0" />
 		<dependency org="commons-cli" name="commons-cli" rev="1.0" />
-		<dependency org="org.apache.hadoop" name="hadoop-common" rev="0.23.3" />
+		<dependency org="org.apache.hadoop" name="hadoop-core" rev="1.0.3"/>
+		<dependency org="org.apache.hadoop" name="hadoop-examples" rev="1.0.3"/>
+		
+		<!--
+		<dependency org="org.apache.hadoop" name="hadoop-common" rev="1.0.4" />
+		 
+		<dependency org="org.apache.hadoop" name="hadoop-mapred" rev="0.23.4"/>	
+		 -->
+		
+		
 	</dependencies>
 
 </ivy-module>

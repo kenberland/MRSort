@@ -32,6 +32,7 @@
 	<target name="clean">
 		<delete dir="build" />
 		<delete dir="lib" />
+		<delete dir="bin" />
 	</target>
 
 	<target name="compile">
@@ -51,14 +52,39 @@
 		</jar>
 	</target>
 
-	<target name="run">
-		<java fork="true" classname="com.hero.mrsort.HelloWorld" >
+	<target name="generate_randomness">
+		<delete dir="/tmp/output" />
+		<delete dir="/tmp/input" />
+		<java fork="true" classname="com.hero.mrsort.RandomWriter" >
 			<classpath>
 				<path refid="class.path" />
 				<pathelement location="build/classes" />
 				</classpath>
 		</java>
 	</target>
+	
+	<target name="sort">
+		<java fork="true" classname="com.hero.mrsort.Sort" >
+			<classpath>
+				<path refid="class.path" />
+				<pathelement location="build/classes" />
+				</classpath>
+		</java>
+	</target>
+	
+	<target name="puke">
+		<java fork="true" classname="com.hero.mrsort.SequenceReader" >
+			<classpath>
+				<path refid="class.path" />
+				<pathelement location="build/classes" />
+				</classpath>
+		</java>
+	</target>
+
+
+	<target name="run" depends="generate_randomness, sort, puke">
+	</target>
+
 
 </project>
 
