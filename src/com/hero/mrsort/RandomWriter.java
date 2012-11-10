@@ -100,9 +100,7 @@ public class RandomWriter extends Configured implements Tool {
 			}
 		}
 
-		/**
-		 * Given an output filename, write a bunch of random records to it.
-		 */
+
 		public void map(WritableComparable key, 
 				Writable value,
 				OutputCollector<BytesWritable, NullWritable> output, 
@@ -121,24 +119,15 @@ public class RandomWriter extends Configured implements Tool {
 			reporter.setStatus("done with " + itemCount + " records.");
 		}
 
-		/**
-		 * Save the values out of the configuaration that we need to write
-		 * the data.
-		 */
+
 		@Override
 		public void configure(JobConf job) {
-			numBytesToWrite = 1024 * 1024 * 10;   
+			numBytesToWrite = 1024 * 1024;   
 		}
 
 	}
 
-	/**
-	 * This is the main routine for launching a distributed random write job.
-	 * It runs 10 maps/node and each node writes 1 gig of data to a DFS file.
-	 * The reduce doesn't do anything.
-	 * 
-	 * @throws IOException 
-	 */
+
 	public int run(String[] args) throws Exception {    
 
 		Path outDir = new Path("/tmp/input");
@@ -155,8 +144,8 @@ public class RandomWriter extends Configured implements Tool {
 		job.setMapperClass(Map.class);        
 		job.setReducerClass(IdentityReducer.class);
 		job.setOutputFormat(SequenceFileOutputFormat.class);
-		int numMaps = 1;    
-		job.setNumMapTasks(1);
+		int numMaps = 5;
+		job.setNumMapTasks(numMaps);
 		System.out.println("Running " + numMaps + " maps.");    
 		// reducer NONE
 		job.setNumReduceTasks(0);

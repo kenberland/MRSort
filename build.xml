@@ -45,16 +45,17 @@
 
 	<target name="jar">
 		<mkdir dir="build/jar" />
-		<jar destfile="build/jar/HelloWorld.jar" basedir="build/classes">
-			<manifest>
+		<jar destfile="build/jar/MRSort.jar" basedir="build/classes">
+			<!-- <manifest>
 				<attribute name="Main-Class" value="com.hero.mrsort.HelloWorld" />
-			</manifest>
+			</manifest>  -->
 		</jar>
 	</target>
 
 	<target name="generate_randomness">
 		<delete dir="/tmp/output" />
 		<delete dir="/tmp/input" />
+		<delete dir="/tmp/confirm" />
 		<java fork="true" classname="com.hero.mrsort.RandomWriter" >
 			<classpath>
 				<path refid="class.path" />
@@ -72,8 +73,8 @@
 		</java>
 	</target>
 	
-	<target name="puke">
-		<java fork="true" classname="com.hero.mrsort.SequenceReaderAndConfirmation" >
+	<target name="confirm">
+		<java fork="true" classname="com.hero.mrsort.ConfirmSort" >
 			<classpath>
 				<path refid="class.path" />
 				<pathelement location="build/classes" />
@@ -82,7 +83,7 @@
 	</target>
 
 
-	<target name="run" depends="generate_randomness, sort, puke">
+	<target name="run" depends="generate_randomness, sort, confirm">
 	</target>
 
 
