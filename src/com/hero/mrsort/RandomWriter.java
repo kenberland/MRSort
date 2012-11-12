@@ -122,7 +122,7 @@ public class RandomWriter extends Configured implements Tool {
 
 		@Override
 		public void configure(JobConf job) {
-			numBytesToWrite = 1024 * 1024;   
+			numBytesToWrite = 32 * 1024 * 1024;
 		}
 
 	}
@@ -144,7 +144,7 @@ public class RandomWriter extends Configured implements Tool {
 		job.setMapperClass(Map.class);        
 		job.setReducerClass(IdentityReducer.class);
 		job.setOutputFormat(SequenceFileOutputFormat.class);
-		int numMaps = 5;
+		int numMaps = 4;
 		job.setNumMapTasks(numMaps);
 		System.out.println("Running " + numMaps + " maps.");    
 		// reducer NONE

@@ -1,8 +1,10 @@
 package com.hero.mrsort;
 
+import java.net.URI;
 import java.util.Date;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
+import org.apache.hadoop.filecache.DistributedCache;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.NullWritable;
@@ -20,6 +22,10 @@ import org.apache.hadoop.mapred.SequenceFileInputFormat;
 import org.apache.hadoop.mapred.SequenceFileOutputFormat;
 import org.apache.hadoop.mapred.lib.IdentityMapper;
 import org.apache.hadoop.mapred.lib.IdentityReducer;
+
+import org.apache.hadoop.mapred.lib.InputSampler;
+import org.apache.hadoop.mapred.lib.TotalOrderPartitioner;
+
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 
@@ -44,7 +50,7 @@ public class Sort<K,V> extends Configured implements Tool {
 	Class<? extends WritableComparable> outputKeyClass = BytesWritable.class;
     Class<? extends Writable> outputValueClass = NullWritable.class;
 
-    jobConf.setNumReduceTasks(1);
+    jobConf.setNumReduceTasks(4);
 
     jobConf.setInputFormat(inputFormatClass);
     jobConf.setOutputFormat(outputFormatClass);
@@ -54,6 +60,19 @@ public class Sort<K,V> extends Configured implements Tool {
     
     FileInputFormat.setInputPaths(jobConf, "/tmp/input/" );
     FileOutputFormat.setOutputPath( jobConf, new Path( "/tmp/output" ) );
+    
+    //  Ah, the Total Order Partitioning Stuff.  Otherwise, you get lists of sorted keys, this keep the keys sorted among the lists.
+    
+    InputSampler.Sampler<K,V> sampler = new InputSampler.RandomSampler<K,V>(5.0F, 128, 16);  //  Major optimization happens here, I suspect.
+    jobConf.setPartitionerClass(TotalOrderPartitioner.class);
+    Path inputDir = FileInputFormat.getInputPaths(jobConf)[0];
+    inputDir = inputDir.makeQualified(inputDir.getFileSystem(jobConf));
+    Path partitionFile = new Path(inputDir, "_sortPartitioning");
+    TotalOrderPartitioner.setPartitionFile(jobConf, partitionFile);
+    InputSampler.<K,V>writePartitionFile(jobConf, sampler);
+    URI partitionUri = new URI(partitionFile.toString() + "#" + "_sortPartitioning");
+    DistributedCache.addCacheFile(partitionUri, jobConf);
+    DistributedCache.createSymlink(jobConf);
     
     System.out.println("Running on " +
     		cluster.getTaskTrackers() +

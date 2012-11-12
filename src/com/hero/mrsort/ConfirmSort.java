@@ -30,9 +30,11 @@ import org.apache.hadoop.mapred.SequenceFileInputFormat;
 import org.apache.hadoop.mapred.SequenceFileOutputFormat;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
+import org.apache.log4j.Logger;
 
 public class ConfirmSort<K,V> extends Configured implements Tool {
-
+	
+	private static Logger logger = Logger.getLogger("ConfirmSort.class");
 	private RunningJob jobResult = null;
 	private static final Text error = new Text("error");
 
@@ -47,6 +49,7 @@ public class ConfirmSort<K,V> extends Configured implements Tool {
 		}
 
 		public void map(BytesWritable key, NullWritable value, OutputCollector<Text, BytesWritable> output, Reporter reporter) throws IOException {
+//			logger.error(Utils.unsignedIntToLong(key.getBytes()));
 			if (lastKey == null ){
 				lastKey = new BytesWritable();
 				this.output = output;
@@ -56,6 +59,7 @@ public class ConfirmSort<K,V> extends Configured implements Tool {
 			} else {
 				if (key.compareTo(lastKey) < 0) {
 					output.collect(error, key);
+					logger.error("Error in mapper: " + key );
 				}
 			}
 			lastKey.set(key);
@@ -86,6 +90,7 @@ public class ConfirmSort<K,V> extends Configured implements Tool {
 				} else {
 					if (value.compareTo(lastValue) < 0) {
 						output.collect(error, value);
+						logger.error("Error in reducer: " + key + " : " + Utils.unsignedIntToLong( value.getBytes() ) );
 					}
 				}
 				lastKey.set(key);
