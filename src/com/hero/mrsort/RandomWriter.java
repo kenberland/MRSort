@@ -123,6 +123,7 @@ public class RandomWriter extends Configured implements Tool {
 		@Override
 		public void configure(JobConf job) {
 			numBytesToWrite = 32 * 1024 * 1024;
+//			numBytesToWrite = 32;
 		}
 
 	}

@@ -43,14 +43,15 @@ public class ConfirmSort<K,V> extends Configured implements Tool {
 		private BytesWritable lastKey = null;
 		private String filename;
 		private OutputCollector<Text,BytesWritable> output;
+		static enum Counters { NULL_LAST_KEYS, REDUCE_RECORDS} ;
 
 		private String getFilename(FileSplit split) {
 			return split.getPath().getName();
 		}
 
 		public void map(BytesWritable key, NullWritable value, OutputCollector<Text, BytesWritable> output, Reporter reporter) throws IOException {
-//			logger.error(Utils.unsignedIntToLong(key.getBytes()));
 			if (lastKey == null ){
+				reporter.incrCounter(Counters.NULL_LAST_KEYS, 1);
 				lastKey = new BytesWritable();
 				this.output = output;
 				reporter.setStatus("starting with key: " + key.toString());
@@ -67,14 +68,13 @@ public class ConfirmSort<K,V> extends Configured implements Tool {
 		}
 
 		public void close() throws IOException {
-			if (lastKey != null) {
-				output.collect(new Text( filename + ":end"), lastKey);
-			}
+			output.collect(new Text( filename + ":end"), lastKey);
+			lastKey = null;
 		}
 	}
 
 	static class ValidateReducer extends MapReduceBase implements Reducer<Text, BytesWritable, Text, BytesWritable> {
-		private boolean firstKey = true;
+		private int keyCount = 0;
 		private Text lastKey = new Text();
 		private BytesWritable lastValue = new BytesWritable();
 
@@ -85,14 +85,17 @@ public class ConfirmSort<K,V> extends Configured implements Tool {
 				}
 			} else {
 				BytesWritable value = values.next();
-				if (firstKey) {
-					firstKey = false;
-				} else {
+				logger.error("Got key=" + key + ", value=" + MrUtils.unsignedIntToLong( value.getBytes() ) );
+				if (keyCount != 0) {
 					if (value.compareTo(lastValue) < 0) {
 						output.collect(error, value);
-						logger.error("Error in reducer: " + key + " : " + Utils.unsignedIntToLong( value.getBytes() ) );
+						logger.error("Error in reducer at keyCount: " + keyCount + ", key="+ key + " : " + MrUtils.unsignedIntToLong( value.getBytes() ) );
+						logger.error("Error in reducer at keyCount: " + keyCount + ", value=" + MrUtils.unsignedIntToLong( value.getBytes() ) 
+								+ " compare=" + value.compareTo(lastValue)
+								+ ", lastValue=" + MrUtils.unsignedIntToLong( lastValue.getBytes() ) );
 					}
 				}
+				keyCount++;
 				lastKey.set(key);
 				lastValue.set(value);
 			}
@@ -119,6 +122,7 @@ public class ConfirmSort<K,V> extends Configured implements Tool {
 	Class<? extends WritableComparable> outputKeyClass = Text.class;
     Class<? extends Writable> outputValueClass = BytesWritable.class;
 
+	jobConf.setNumMapTasks(4);
     jobConf.setNumReduceTasks(1);
 
     jobConf.setInputFormat(inputFormatClass);
@@ -154,10 +158,6 @@ public class ConfirmSort<K,V> extends Configured implements Tool {
     System.exit(res);
   }
 
-  /**
-   * Get the last job that was run using this instance.
-   * @return the results of the last job that was run
-   */
   public RunningJob getResult() {
     return jobResult;
   }

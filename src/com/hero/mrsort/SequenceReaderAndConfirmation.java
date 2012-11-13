@@ -20,7 +20,7 @@ public class SequenceReaderAndConfirmation {
 		Long cur;
 		Long last=0L;
 		while( reader.next(key) ){
-			cur = Utils.unsignedIntToLong(key.getBytes() );
+			cur = MrUtils.unsignedIntToLong(key.getBytes() );
 			logger.error(cur);
 			if (cur < last ){
 				logger.error("Your sort is busted.");
