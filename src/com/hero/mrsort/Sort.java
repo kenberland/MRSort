@@ -62,18 +62,19 @@ public class Sort<K,V> extends Configured implements Tool {
     FileOutputFormat.setOutputPath( jobConf, new Path( "/tmp/output" ) );
     
     //  Ah, the Total Order Partitioning Stuff.  Otherwise, you get lists of sorted keys, this keep the keys sorted among the lists.
-    
-    InputSampler.Sampler<K,V> sampler = new InputSampler.RandomSampler<K,V>(5.0F, 128, 16);  //  Major optimization happens here, I suspect.
-    jobConf.setPartitionerClass(TotalOrderPartitioner.class);
-    Path inputDir = FileInputFormat.getInputPaths(jobConf)[0];
-    inputDir = inputDir.makeQualified(inputDir.getFileSystem(jobConf));
-    Path partitionFile = new Path(inputDir, "_sortPartitioning");
-    TotalOrderPartitioner.setPartitionFile(jobConf, partitionFile);
-    InputSampler.<K,V>writePartitionFile(jobConf, sampler);
-    URI partitionUri = new URI(partitionFile.toString() + "#" + "_sortPartitioning");
-    DistributedCache.addCacheFile(partitionUri, jobConf);
-    DistributedCache.createSymlink(jobConf);
-    
+
+    if (true){
+    	InputSampler.Sampler<K,V> sampler = new InputSampler.RandomSampler<K,V>(5.0F, 128, 16);  //  Major optimization happens here, I suspect.
+    	jobConf.setPartitionerClass(TotalOrderPartitioner.class);
+    	Path inputDir = FileInputFormat.getInputPaths(jobConf)[0];
+    	inputDir = inputDir.makeQualified(inputDir.getFileSystem(jobConf));
+    	Path partitionFile = new Path(inputDir, "_sortPartitioning");
+    	TotalOrderPartitioner.setPartitionFile(jobConf, partitionFile);
+    	InputSampler.<K,V>writePartitionFile(jobConf, sampler);
+    	URI partitionUri = new URI(partitionFile.toString() + "#" + "_sortPartitioning");
+    	DistributedCache.addCacheFile(partitionUri, jobConf);
+    	DistributedCache.createSymlink(jobConf);
+    }
     System.out.println("Running on " +
     		cluster.getTaskTrackers() +
         " nodes to sort from " + 

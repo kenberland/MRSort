@@ -2,8 +2,13 @@ package com.hero.mrsort;
 
 import java.io.IOException;
 import java.util.Date;
+import java.util.EmptyStackException;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Stack;
+import java.util.UUID;
 
+import org.apache.commons.lang.math.LongRange;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.Path;
@@ -15,7 +20,6 @@ import org.apache.hadoop.io.WritableComparable;
 import org.apache.hadoop.mapred.ClusterStatus;
 import org.apache.hadoop.mapred.FileInputFormat;
 import org.apache.hadoop.mapred.FileOutputFormat;
-import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.mapred.JobClient;
 import org.apache.hadoop.mapred.JobConf;
@@ -36,47 +40,43 @@ public class ConfirmSort<K,V> extends Configured implements Tool {
 	
 	private static Logger logger = Logger.getLogger("ConfirmSort.class");
 	private RunningJob jobResult = null;
-	private static final Text error = new Text("error");
+	private static final Text error = new Text("Turdstein");
+	static enum Markers { BEGIN, END } ;
 
 	static class ValidateMap extends MapReduceBase implements Mapper<BytesWritable, NullWritable, Text, BytesWritable> {
 
 		private BytesWritable lastKey = null;
 		private String filename;
 		private OutputCollector<Text,BytesWritable> output;
-		static enum Counters { NULL_LAST_KEYS, REDUCE_RECORDS} ;
-
-		private String getFilename(FileSplit split) {
-			return split.getPath().getName();
-		}
+		static enum Counters { NULL_LAST_KEYS };
 
 		public void map(BytesWritable key, NullWritable value, OutputCollector<Text, BytesWritable> output, Reporter reporter) throws IOException {
 			if (lastKey == null ){
-				reporter.incrCounter(Counters.NULL_LAST_KEYS, 1);
 				lastKey = new BytesWritable();
+				reporter.incrCounter(Counters.NULL_LAST_KEYS, 1);
 				this.output = output;
 				reporter.setStatus("starting with key: " + key.toString());
-				filename = getFilename((FileSplit) reporter.getInputSplit());
-				output.collect(new Text(filename + ":begin"), key);
+				filename = UUID.randomUUID().toString();
+				output.collect(new Text(filename + ":" + Markers.BEGIN ), key);
 			} else {
 				if (key.compareTo(lastKey) < 0) {
 					output.collect(error, key);
-					logger.error("Error in mapper: " + key );
+					logger.error("Error in mapper: key=" + key + ", lastKey=" + lastKey);
 				}
 			}
 			lastKey.set(key);
-			reporter.setStatus("done.");
 		}
 
 		public void close() throws IOException {
-			output.collect(new Text( filename + ":end"), lastKey);
+			output.collect(new Text( filename + ":" + Markers.END ), lastKey);
 			lastKey = null;
 		}
 	}
 
 	static class ValidateReducer extends MapReduceBase implements Reducer<Text, BytesWritable, Text, BytesWritable> {
-		private int keyCount = 0;
-		private Text lastKey = new Text();
-		private BytesWritable lastValue = new BytesWritable();
+		
+		private HashMap<String, HashMap<String, Long>> myRangesData = new HashMap<String, HashMap<String, Long>>();
+		private OutputCollector<Text,BytesWritable> output;
 
 		public void reduce(Text key, Iterator<BytesWritable> values, OutputCollector<Text, BytesWritable> output, Reporter reporter) throws IOException {
 			if (error.equals(key)) {
@@ -84,22 +84,50 @@ public class ConfirmSort<K,V> extends Configured implements Tool {
 					output.collect(key, values.next());
 				}
 			} else {
-				BytesWritable value = values.next();
-				logger.error("Got key=" + key + ", value=" + MrUtils.unsignedIntToLong( value.getBytes() ) );
-				if (keyCount != 0) {
-					if (value.compareTo(lastValue) < 0) {
-						output.collect(error, value);
-						logger.error("Error in reducer at keyCount: " + keyCount + ", key="+ key + " : " + MrUtils.unsignedIntToLong( value.getBytes() ) );
-						logger.error("Error in reducer at keyCount: " + keyCount + ", value=" + MrUtils.unsignedIntToLong( value.getBytes() ) 
-								+ " compare=" + value.compareTo(lastValue)
-								+ ", lastValue=" + MrUtils.unsignedIntToLong( lastValue.getBytes() ) );
+				// bucket the begin and end keys in a structure to review at the end
+				BytesWritable value;
+				while ( values.hasNext() ){
+					value = values.next();										
+					String[] keySplit = MrUtils.splitOnColon(key.toString());
+					if ( ! myRangesData.containsKey( keySplit[0] ) ){
+						myRangesData.put(keySplit[0], new HashMap<String, Long>() );
 					}
+					myRangesData.get( keySplit[0] ).put(keySplit[1], MrUtils.unsignedIntToLong(value.getBytes()) );
 				}
-				keyCount++;
-				lastKey.set(key);
-				lastValue.set(value);
 			}
 		}
+		
+		public void close() throws IOException {
+			// convert the data to ranges and make sure none of the ranges overlap
+			System.out.println(myRangesData.toString());
+			Stack<LongRange> myRanges = new Stack<LongRange>();
+			Iterator <String> myyRangesIterator = myRangesData.keySet().iterator();
+			// convert the data to an ArrayList of Range's
+			while( myyRangesIterator.hasNext() ){
+				String myKey = myyRangesIterator.next();
+				// Don't have to set() with .toString, but ya gotta get() that way.  Go figure.
+				myRanges.push( new LongRange( myRangesData.get(myKey).get(Markers.BEGIN.toString()), myRangesData.get(myKey).get(Markers.END.toString() ) ) );
+				logger.error("Make range: l=" + myRangesData.get(myKey).get(Markers.BEGIN.toString()) + ", h=" + myRangesData.get(myKey).get(Markers.END.toString()) );
+			}
+			// Check the first range against all the others, run time is Σ(n-1)i=1i, like factorial but with addition, what's that called?  4+3+2+1...
+			try {
+				while(true){
+					LongRange heroRange = myRanges.pop();
+					Iterator<LongRange> otherRangesIterator =  myRanges.iterator();
+					while( otherRangesIterator.hasNext() ){
+						LongRange otherRange = otherRangesIterator.next();
+						if ( heroRange.overlapsRange(otherRange) ){
+							logger.error("Sort is fucked. hero=" + heroRange.toString() + " otherRange=" + otherRange.toString() );
+							BytesWritable value = null;
+							output.collect(error, value);
+						}
+					}
+				}
+			} catch ( EmptyStackException e ){
+				logger.error("stack is empty.");
+			}
+		}
+
 	}
 
 
@@ -161,4 +189,5 @@ public class ConfirmSort<K,V> extends Configured implements Tool {
   public RunningJob getResult() {
     return jobResult;
   }
+  
 }
